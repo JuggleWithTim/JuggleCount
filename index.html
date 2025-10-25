@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JuggleCount - Live Catch Counter</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .main-content {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .video-section {
+            flex: 1;
+            position: relative;
+        }
+        #videoCanvas {
+            width: 100%;
+            max-width: 640px;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            background: #000;
+        }
+        .detection-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e74c3c;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .controls {
+            flex: 0 0 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .color-picker {
+            width: 100%;
+            height: 40px;
+            border: 2px solid #bdc3c7;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .slider {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: #bdc3c7;
+            outline: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+        }
+        .count-display {
+            text-align: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: #27ae60;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        #videoElement {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Live Catch Counter</h1>
+
+        <div class="count-display">
+            <div id="catchCount">0</div>
+            <div style="font-size: 18px; color: #7f8c8d;">Catches</div>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <canvas id="videoCanvas"></canvas>
+                <div id="detectionLine" class="detection-line"></div>
+            </div>
+
+            <div class="controls">
+                <div id="statusMessage" class="status info">Initializing...</div>
+
+                <div class="control-group">
+                    <button id="resetCount">Reset Count</button>
+                </div>
+
+                <div class="control-group">
+                    <button id="startButton">Start Camera</button>
+                    <button id="stopButton" disabled>Stop Camera</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="cameraSelect">Camera</label>
+                    <select id="cameraSelect" style="width: 100%; padding: 8px; border: 2px solid #bdc3c7; border-radius: 4px;">
+                        <option value="">Select Camera...</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="colorPicker">Ball Color (click on ball in video)</label>
+                    <input type="color" id="colorPicker" class="color-picker" value="#ff0000">
+                </div>
+
+                <div class="control-group">
+                    <label for="lineHeight">Detection Line Height: <span id="lineHeightValue">50</span>%</label>
+                    <input type="range" id="lineHeight" class="slider" min="10" max="90" value="50">
+                </div>
+
+                <div class="control-group">
+                    <label for="colorTolerance">Color Tolerance: <span id="toleranceValue">30</span></label>
+                    <input type="range" id="colorTolerance" class="slider" min="5" max="100" value="30">
+                </div>
+
+                <div class="control-group">
+                    <label for="minBallSize">Minimum Ball Size: <span id="ballSizeValue">10</span> pixels</label>
+                    <input type="range" id="minBallSize" class="slider" min="5" max="50" value="10">
+                </div>
+
+                <div class="control-group">
+                    <label for="circularityThreshold">Circularity Threshold: <span id="circularityValue">0.6</span></label>
+                    <input type="range" id="circularityThreshold" class="slider" min="0.1" max="1.0" step="0.1" value="0.6">
+                </div>
+
+                <div class="control-group">
+                    <label for="hsvWeight">HSV Hue Weight: <span id="hsvWeightValue">4</span>x</label>
+                    <input type="range" id="hsvWeight" class="slider" min="1" max="10" value="4">
+                </div>
+
+                <div class="control-group">
+                    <label for="catchMultiplier">Catch Multiplier: <span id="multiplierValue">1</span>x</label>
+                    <input type="range" id="catchMultiplier" class="slider" min="1" max="10" value="1">
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="multiBallMode">
+                        Multi-ball Tracking
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <button id="calibrateColor">Calibrate Color</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <video id="videoElement" autoplay playsinline></video>
+
+    <script src="app.js"></script>
+</body>
+</html>
